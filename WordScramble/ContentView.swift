@@ -9,12 +9,13 @@ struct ContentView: View {
     @State private var errorMessage = ""
     @State private var showingError = false
     
+    @State private var userScore = 0
+    
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     TextField("Enter a word", text: $newWord).textInputAutocapitalization(.never)
-                    Text(rootWord)
                 }
                 Section {
                     ForEach(usedWords, id: \.self) { word in
@@ -24,19 +25,30 @@ struct ContentView: View {
                         }
                     }
                 }
-            }
-        }.navigationTitle(rootWord)
-            .onSubmit(addNewWord)
-            .onAppear(perform: startGame)
-            .alert(errorTitle, isPresented: $showingError) { } message: {
-                Text(errorMessage)
-            }
+            }.navigationTitle(rootWord)
+                .toolbar {
+                    VStack {
+                        Button("Restart game", action: startGame)
+                        Text("Score: \(userScore)")
+                    }
+                }
+        }
+        .onSubmit(addNewWord)
+        .onAppear(perform: startGame)
+        .alert(errorTitle, isPresented: $showingError) { } message: {
+            Text(errorMessage)
+        }
     }
     
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard answer.count > 0 else { return }
+        guard answer.count > 2 else { return }
+        
+        guard isRootWord(word: answer) else {
+            wordError(title: "Word not possible", message: "You can't spell root word")
+            return
+        }
 
         guard isOriginal(word: answer) else {
             wordError(title: "Word used already", message: "Be more original")
@@ -53,6 +65,8 @@ struct ContentView: View {
             return
         }
         
+        setScore(word: answer)
+        
         withAnimation {
             usedWords.insert(answer, at: 0)
         }
@@ -64,11 +78,16 @@ struct ContentView: View {
             if let getContent = try? String(contentsOf: getFile, encoding: .utf8) {
                 let wordsList = getContent.components(separatedBy: .whitespacesAndNewlines)
                 rootWord = wordsList.randomElement()!
-                
+                usedWords = []
+                userScore = 0
                 return
             }
         }
         fatalError("Couldn't load file")
+    }
+    
+    func isRootWord(word: String) -> Bool {
+        !(rootWord == word)
     }
     
     func isOriginal(word: String) -> Bool {
@@ -101,6 +120,10 @@ struct ContentView: View {
         errorTitle = title
         errorMessage = message
         showingError = true
+    }
+    
+    func setScore(word: String) {
+        userScore += word.count
     }
 }
 
